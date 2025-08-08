@@ -12,10 +12,18 @@ function parsePercentage(value) {
 function parseSendTime(value) {
     if (!value) return null;
     try {
-        const [datePart, timePart] = value.split(' ');
-        const [month, day, year] = datePart.split('/');
-        const date = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} ${timePart}`);
-        if (isNaN(date.getTime())) throw new Error('Invalid date');
+        const date = new Date(value);
+        if (isNaN(date.getTime())) {
+            const parts = value.match(/(\d{1,2})\/(\d{1,2})\/(\d{4}) (\d{1,2}):(\d{2}) (AM|PM)/);
+            if (parts) {
+                let hour = parseInt(parts[4]);
+                const minute = parseInt(parts[5]);
+                const ampm = parts[6];
+                if (ampm === 'PM' && hour < 12) hour += 12;
+                if (ampm === 'AM' && hour === 12) hour = 0;
+                return new Date(parts[3], parts[1] - 1, parts[2], hour, minute);
+            }
+        }
         return date;
     } catch (e) {
         console.error('Error parsing Send Time:', value, e);
@@ -94,7 +102,9 @@ function filterAndProcessData() {
 }
 
 function processData(rawData) {
-    const dailyData = {}, weeklyData = {}, monthlyData = {}, trendData = {}, growthData = {}, seasonalData = {};
+    const dailyData = {}, weeklyData = {}, monthlyData = {}, trendData = {}, growthData = {};
+    const seasonalDayData = {};
+    const seasonalMonthData = {};
     console.log('Processing Data with', rawData.length, 'rows'); // Debug log
 
     rawData.forEach((row, index) => {
@@ -177,22 +187,25 @@ function processData(rawData) {
         growthData[campaignName].recipientsSum += recipients;
         growthData[campaignName].count++;
 
-        if (!seasonalData[sendDays]) {
-            seasonalData[sendDays] = { revenueSum: 0, count: 0 };
+        // Corrected seasonal data processing
+        if (!seasonalDayData[sendDays]) {
+            seasonalDayData[sendDays] = { revenueSum: 0, count: 0 };
         }
-        seasonalData[sendDays].revenueSum += revenue;
-        seasonalData[sendDays].count++;
-        if (!seasonalData[month]) {
-            seasonalData[month] = { revenueSum: 0, count: 0 };
+        seasonalDayData[sendDays].revenueSum += revenue;
+        seasonalDayData[sendDays].count++;
+
+        if (!seasonalMonthData[month]) {
+            seasonalMonthData[month] = { revenueSum: 0, count: 0 };
         }
-        seasonalData[month].revenueSum += revenue;
-        seasonalData[month].count++;
+        seasonalMonthData[month].revenueSum += revenue;
+        seasonalMonthData[month].count++;
     });
 
     // Log data structures to debug empty Growth and Seasonal data
     console.log('Processed Daily Data:', dailyData);
     console.log('Processed Growth Data:', growthData);
-    console.log('Processed Seasonal Data:', seasonalData);
+    console.log('Processed Seasonal Day Data:', seasonalDayData);
+    console.log('Processed Seasonal Month Data:', seasonalMonthData);
 
     const dailyOutput = [['Date Sent', 'Campaign Name', 'Subject', 'Open Rate', 'Click Rate', 'Conversion Rate', 'Send Time', 'Send Days', 'List / Segment', 'Revenue']];
     for (const date in dailyData) {
@@ -264,23 +277,20 @@ function processData(rawData) {
 
     const seasonalOutput = [['Period', 'Average Revenue']];
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    let hasSeasonalData = false;
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    
+    // Day Data
     days.forEach(day => {
-        const data = seasonalData[day];
-        const avgRevenue = data ? (data.revenueSum / data.count).toFixed(2) : '-';
-        if (data && data.count > 0) hasSeasonalData = true;
+        const data = seasonalDayData[day];
+        const avgRevenue = data && data.count > 0 ? (data.revenueSum / data.count).toFixed(2) : '0.00';
         seasonalOutput.push([day, avgRevenue]);
     });
-    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    // Month Data
     months.forEach(month => {
-        const data = seasonalData[month];
-        const avgRevenue = data ? (data.revenueSum / data.count).toFixed(2) : '-';
-        if (data && data.count > 0) hasSeasonalData = true;
+        const data = seasonalMonthData[month];
+        const avgRevenue = data && data.count > 0 ? (data.revenueSum / data.count).toFixed(2) : '0.00';
         seasonalOutput.push([month, avgRevenue]);
     });
-    if (!hasSeasonalData) {
-        seasonalOutput.push(['No Data', '0.00']);
-    }
 
     try {
         renderTables({ daily: dailyOutput, weekly: weeklyOutput, monthly: monthlyOutput, trend: trendOutput, growth: growthOutput, seasonal: seasonalOutput });
@@ -293,7 +303,10 @@ function processData(rawData) {
 function getWeekStartDate(date) {
     const day = date.getDay();
     const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(date.setDate(diff));
+    const weekStartDate = new Date(date);
+    weekStartDate.setDate(diff);
+    weekStartDate.setHours(0, 0, 0, 0);
+    return weekStartDate;
 }
 
 function renderTables(data) {
@@ -323,10 +336,14 @@ function renderTables(data) {
             ordering: true,
             order: [],
             lengthMenu: [10, 25, 50, 100],
-            scrollX: true // Enable horizontal scrolling for wide tables
+            scrollX: true
         });
 
         if (chartId) {
+            const ctx = document.getElementById(chartId).getContext('2d');
+            if (window.Chart && window.Chart.getChart(ctx)) {
+                window.Chart.getChart(ctx).destroy();
+            }
             const chartData = {
                 labels: tableData.slice(1).map(row => row[0]),
                 datasets: []
@@ -334,12 +351,12 @@ function renderTables(data) {
             if (tableId === 'trendTable') {
                 chartData.datasets.push({
                     label: 'Total Revenue',
-                    data: tableData.slice(1).map(row => parseFloat(row[1])),
+                    data: tableData.slice(1).map(row => parseFloat(row[1] || 0)),
                     borderColor: '#3a86ff',
                     backgroundColor: 'rgba(58, 134, 255, 0.2)',
                     fill: true
                 });
-                new Chart(document.getElementById(chartId), {
+                new window.Chart(ctx, {
                     type: 'line',
                     data: chartData,
                     options: {
@@ -352,12 +369,13 @@ function renderTables(data) {
                     }
                 });
             } else if (tableId === 'growthTable') {
+                chartData.labels = tableData.slice(1).map(row => row[0]);
                 chartData.datasets.push({
                     label: 'Total Revenue',
-                    data: tableData.slice(1).map(row => parseFloat(row[1])),
+                    data: tableData.slice(1).map(row => parseFloat(row[1] || 0)),
                     backgroundColor: '#3a86ff'
                 });
-                new Chart(document.getElementById(chartId), {
+                new window.Chart(ctx, {
                     type: 'bar',
                     data: chartData,
                     options: {
@@ -370,13 +388,17 @@ function renderTables(data) {
                     }
                 });
             } else if (tableId === 'seasonalTable') {
-                chartData.labels = tableData.slice(8, 20).map(row => row[0]);
+                // Get month data for the chart from seasonalOutput
+                const seasonalMonthLabels = tableData.slice(8, 20).map(row => row[0]);
+                const seasonalMonthData = tableData.slice(8, 20).map(row => parseFloat(row[1] || 0));
+
+                chartData.labels = seasonalMonthLabels;
                 chartData.datasets.push({
                     label: 'Average Revenue',
-                    data: tableData.slice(8, 20).map(row => parseFloat(row[1]) || 0),
+                    data: seasonalMonthData,
                     backgroundColor: '#3a86ff'
                 });
-                new Chart(document.getElementById(chartId), {
+                new window.Chart(ctx, {
                     type: 'bar',
                     data: chartData,
                     options: {
