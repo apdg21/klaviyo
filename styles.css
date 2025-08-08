@@ -1,0 +1,86 @@
+body {
+    background-color: #f4f4f4;
+    padding: 20px;
+}
+.container {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    max-width: 1400px;
+    margin: 0 auto;
+}
+.form-group {
+    max-width: 33%;
+    margin-bottom: 20px;
+    display: inline-block;
+    vertical-align: top;
+}
+.table-responsive {
+    overflow-x: auto;
+}
+.table th {
+    background-color: #3a86ff;
+    color: #f8f9fa;
+    font-weight: bold;
+}
+h1 {
+    background-color: #3a86ff;
+    color: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 20px;
+}
+.nav-tabs .nav-link.active {
+    background-color: #3a86ff;
+    color: #f8f9fa;
+}
+.nav {
+    margin-top: 50px;
+}
+table.dataTable thead th::before,
+table.dataTable thead th::after {
+    color: transparent !important;
+}
+table.dataTable thead tr th:hover::before,
+table.dataTable thead tr th:hover::after {
+    color: rgba(255, 255, 255, 0.5) !important;
+}
+table.dataTable thead tr th.sorting_asc::before,
+table.dataTable thead tr th.sorting_desc::after {
+    color: #f8f9fa !important;
+}
+.btn-primary {
+    background-color: #3a86ff;
+    border-color: #3a86ff;
+}
+.btn-primary:hover {
+    background-color: #2b2d42;
+    border-color: #2b2d42;
+}
+canvas {
+    max-width: 100%;
+    margin-top: 20px;
+}
+@media (max-width: 768px) {
+    .form-group {
+        max-width: 100%;
+        display: block;
+    }
+    .container {
+        padding: 15px;
+    }
+    h1 {
+        font-size: 1.5em;
+    }
+}
+@media (max-width: 480px) {
+    .container {
+        padding: 10px;
+    }
+    h1 {
+        font-size: 1.2em;
+    }
+}
