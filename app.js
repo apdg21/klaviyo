@@ -3,9 +3,17 @@ let rawDataCache = null;
 // Helper function to parse percentage strings (e.g., "61.57%" → 0.6157)
 function parsePercentage(value) {
     if (typeof value === 'string' && value.endsWith('%')) {
-        return parseFloat(value.replace('%', '')) / 100;
+        return parseFloat(value.replace('%', '')) / 100 || 0;
     }
     return parseFloat(value) || 0;
+}
+
+// Helper function to parse Send Time (e.g., "2/26/2025 9:00" → Date object)
+function parseSendTime(value) {
+    if (!value) return null;
+    const [datePart, timePart] = value.split(' ');
+    const [month, day, year] = datePart.split('/');
+    return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} ${timePart}`);
 }
 
 document.getElementById('csvUpload').addEventListener('change', function(e) {
@@ -17,6 +25,7 @@ document.getElementById('csvUpload').addEventListener('change', function(e) {
         header: true,
         skipEmptyLines: true,
         complete: function(results) {
+            console.log('Papa Parse Complete:', results); // Debug log
             if (results.errors.length > 0) {
                 console.error('CSV Parsing Errors:', results.errors);
                 alert('Error parsing CSV: ' + results.errors[0].message);
@@ -24,7 +33,7 @@ document.getElementById('csvUpload').addEventListener('change', function(e) {
                 return;
             }
             rawDataCache = results.data;
-            console.log('Parsed CSV Data:', rawDataCache); // Debug logging
+            console.log('Raw Data Cache:', rawDataCache); // Debug log
             loadingIndicator.style.display = 'none';
             // Process data immediately if no date filters are set
             const startDate = document.getElementById('startDate').value;
@@ -56,10 +65,11 @@ function filterAndProcessData() {
     loadingIndicator.style.display = 'block';
 
     const filteredData = rawDataCache.filter(row => {
-        const sendDate = new Date(row['Send Time']);
+        const sendDate = parseSendTime(row['Send Time']);
+        console.log('Send Date Parsed:', sendDate, 'for row:', row); // Debug log
         const matchesStart = !startDate || sendDate >= new Date(startDate);
         const matchesEnd = !endDate || sendDate <= new Date(endDate);
-        return matchesStart && matchesEnd && !isNaN(sendDate);
+        return sendDate && matchesStart && matchesEnd;
     });
 
     loadingIndicator.style.display = 'none';
@@ -73,11 +83,15 @@ function filterAndProcessData() {
 
 function processData(rawData) {
     const dailyData = {}, weeklyData = {}, monthlyData = {}, trendData = {}, growthData = {}, seasonalData = {};
+    console.log('Processing Data with', rawData.length, 'rows'); // Debug log
 
-    rawData.forEach(row => {
-        if (!row['Send Time']) return;
-        const sendDate = new Date(row['Send Time']);
-        if (isNaN(sendDate)) return; // Skip invalid dates
+    rawData.forEach((row, index) => {
+        console.log('Processing row', index, ':', row); // Debug log
+        const sendDate = parseSendTime(row['Send Time']);
+        if (!sendDate) {
+            console.warn('Invalid Send Time in row', index, ':', row['Send Time']);
+            return;
+        }
         const dateString = sendDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
         const weekStart = getWeekStartDate(sendDate);
         const weekString = `${weekStart.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} - ${new Date(weekStart.setDate(weekStart.getDate() + 6)).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
@@ -157,6 +171,9 @@ function processData(rawData) {
         seasonalData[month].revenueSum += revenue;
         seasonalData[month].count++;
     });
+
+    console.log('Processed Daily Data:', dailyData); // Debug log
+    console.log('Processed Weekly Data:', weeklyData); // Debug log
 
     const dailyOutput = [['Date Sent', 'Campaign Name', 'Subject', 'Open Rate', 'Click Rate', 'Conversion Rate', 'Send Time', 'Send Days', 'List / Segment', 'Revenue']];
     for (const date in dailyData) {
