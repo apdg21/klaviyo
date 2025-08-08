@@ -20,12 +20,14 @@ body {
     margin-bottom: 20px;
 }
 .table-responsive {
-    overflow-x: auto;
+    overflow-x: auto; /* Ensure horizontal scrolling for tables */
+    width: 100%; /* Full width of container */
 }
 .table th {
     background-color: #3a86ff;
     color: #f8f9fa;
     font-weight: bold;
+    white-space: nowrap; /* Prevent text wrapping in headers */
 }
 h1 {
     background-color: #3a86ff;
@@ -67,6 +69,16 @@ canvas {
     max-width: 100%;
     margin-top: 20px;
 }
+.row {
+    margin-left: 0;
+    margin-right: 0;
+}
+.col-md-6 {
+    padding-left: 0;
+    padding-right: 0;
+    max-width: 50%;
+    flex: 0 0 50%;
+}
 @media (max-width: 768px) {
     .form-group {
         max-width: 100%;
@@ -77,6 +89,10 @@ canvas {
     }
     h1 {
         font-size: 1.5em;
+    }
+    .col-md-6 {
+        max-width: 100%;
+        flex: 0 0 100%;
     }
 }
 @media (max-width: 480px) {

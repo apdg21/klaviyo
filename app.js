@@ -11,9 +11,16 @@ function parsePercentage(value) {
 // Helper function to parse Send Time (e.g., "2/26/2025 9:00" → Date object)
 function parseSendTime(value) {
     if (!value) return null;
-    const [datePart, timePart] = value.split(' ');
-    const [month, day, year] = datePart.split('/');
-    return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} ${timePart}`);
+    try {
+        const [datePart, timePart] = value.split(' ');
+        const [month, day, year] = datePart.split('/');
+        const date = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} ${timePart}`);
+        if (isNaN(date.getTime())) throw new Error('Invalid date');
+        return date;
+    } catch (e) {
+        console.error('Error parsing Send Time:', value, e);
+        return null;
+    }
 }
 
 document.getElementById('csvUpload').addEventListener('change', function(e) {
@@ -34,6 +41,11 @@ document.getElementById('csvUpload').addEventListener('change', function(e) {
             }
             rawDataCache = results.data;
             console.log('Raw Data Cache:', rawDataCache); // Debug log
+            if (!rawDataCache || rawDataCache.length === 0) {
+                alert('No valid data found in the CSV.');
+                loadingIndicator.style.display = 'none';
+                return;
+            }
             loadingIndicator.style.display = 'none';
             // Process data immediately if no date filters are set
             const startDate = document.getElementById('startDate').value;
@@ -67,8 +79,8 @@ function filterAndProcessData() {
     const filteredData = rawDataCache.filter(row => {
         const sendDate = parseSendTime(row['Send Time']);
         console.log('Send Date Parsed:', sendDate, 'for row:', row); // Debug log
-        const matchesStart = !startDate || sendDate >= new Date(startDate);
-        const matchesEnd = !endDate || sendDate <= new Date(endDate);
+        const matchesStart = !startDate || (sendDate && sendDate >= new Date(startDate));
+        const matchesEnd = !endDate || (sendDate && sendDate <= new Date(endDate));
         return sendDate && matchesStart && matchesEnd;
     });
 
@@ -108,6 +120,11 @@ function processData(rawData) {
         const clicks = parseFloat(row['Unique Clicks']) || 0;
         const sendDays = row['Send Weekday'] || 'Unknown';
         const listSegment = row['List'] || 'Unknown';
+
+        if (isNaN(openRate) || isNaN(clickRate) || isNaN(conversionRate)) {
+            console.warn('Invalid rate values in row', index, ':', { openRate, clickRate, conversionRate });
+            return;
+        }
 
         if (!dailyData[dateString]) {
             dailyData[dateString] = { openRateSum: 0, clickRateSum: 0, conversionRateSum: 0, revenueSum: 0, count: 0, sendTime: sendDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }), campaigns: {} };
@@ -172,8 +189,10 @@ function processData(rawData) {
         seasonalData[month].count++;
     });
 
-    console.log('Processed Daily Data:', dailyData); // Debug log
-    console.log('Processed Weekly Data:', weeklyData); // Debug log
+    // Log data structures to debug empty Growth and Seasonal data
+    console.log('Processed Daily Data:', dailyData);
+    console.log('Processed Growth Data:', growthData);
+    console.log('Processed Seasonal Data:', seasonalData);
 
     const dailyOutput = [['Date Sent', 'Campaign Name', 'Subject', 'Open Rate', 'Click Rate', 'Conversion Rate', 'Send Time', 'Send Days', 'List / Segment', 'Revenue']];
     for (const date in dailyData) {
@@ -230,28 +249,45 @@ function processData(rawData) {
     }
 
     const growthOutput = [['Campaign Name', 'Total Revenue', 'Average Recipients']];
-    for (const campaign in growthData) {
-        const count = growthData[campaign].count;
-        growthOutput.push([
-            campaign,
-            growthData[campaign].revenueSum.toFixed(2),
-            (count > 0 ? growthData[campaign].recipientsSum / count : 0).toFixed(0)
-        ]);
+    if (Object.keys(growthData).length === 0) {
+        growthOutput.push(['No Data', '0.00', '0']);
+    } else {
+        for (const campaign in growthData) {
+            const count = growthData[campaign].count;
+            growthOutput.push([
+                campaign,
+                growthData[campaign].revenueSum.toFixed(2),
+                (count > 0 ? growthData[campaign].recipientsSum / count : 0).toFixed(0)
+            ]);
+        }
     }
 
     const seasonalOutput = [['Period', 'Average Revenue']];
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    let hasSeasonalData = false;
     days.forEach(day => {
-        const avgRevenue = seasonalData[day] ? (seasonalData[day].revenueSum / seasonalData[day].count).toFixed(2) : '-';
+        const data = seasonalData[day];
+        const avgRevenue = data ? (data.revenueSum / data.count).toFixed(2) : '-';
+        if (data && data.count > 0) hasSeasonalData = true;
         seasonalOutput.push([day, avgRevenue]);
     });
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     months.forEach(month => {
-        const avgRevenue = seasonalData[month] ? (seasonalData[month].revenueSum / seasonalData[month].count).toFixed(2) : '-';
+        const data = seasonalData[month];
+        const avgRevenue = data ? (data.revenueSum / data.count).toFixed(2) : '-';
+        if (data && data.count > 0) hasSeasonalData = true;
         seasonalOutput.push([month, avgRevenue]);
     });
+    if (!hasSeasonalData) {
+        seasonalOutput.push(['No Data', '0.00']);
+    }
 
-    renderTables({ daily: dailyOutput, weekly: weeklyOutput, monthly: monthlyOutput, trend: trendOutput, growth: growthOutput, seasonal: seasonalOutput });
+    try {
+        renderTables({ daily: dailyOutput, weekly: weeklyOutput, monthly: monthlyOutput, trend: trendOutput, growth: growthOutput, seasonal: seasonalOutput });
+    } catch (e) {
+        console.error('Error rendering tables:', e);
+        alert('Error displaying data: ' + e.message);
+    }
 }
 
 function getWeekStartDate(date) {
@@ -272,6 +308,10 @@ function renderTables(data) {
 
     for (const [tableId, { data: tableData, chartId }] of Object.entries(tables)) {
         const container = document.getElementById(tableId);
+        if (!container) {
+            console.error('Container not found:', tableId);
+            continue;
+        }
         container.innerHTML = createTableHtml(tableData);
 
         if ($.fn.DataTable.isDataTable(`#${tableId} table`)) {
@@ -282,7 +322,8 @@ function renderTables(data) {
             searching: true,
             ordering: true,
             order: [],
-            lengthMenu: [10, 25, 50, 100]
+            lengthMenu: [10, 25, 50, 100],
+            scrollX: true // Enable horizontal scrolling for wide tables
         });
 
         if (chartId) {
@@ -303,6 +344,7 @@ function renderTables(data) {
                     data: chartData,
                     options: {
                         responsive: true,
+                        maintainAspectRatio: false,
                         scales: {
                             y: { beginAtZero: true, title: { display: true, text: 'Revenue' } },
                             x: { title: { display: true, text: 'Month' } }
@@ -320,6 +362,7 @@ function renderTables(data) {
                     data: chartData,
                     options: {
                         responsive: true,
+                        maintainAspectRatio: false,
                         scales: {
                             y: { beginAtZero: true, title: { display: true, text: 'Revenue' } },
                             x: { title: { display: true, text: 'Campaign' } }
@@ -338,6 +381,7 @@ function renderTables(data) {
                     data: chartData,
                     options: {
                         responsive: true,
+                        maintainAspectRatio: false,
                         scales: {
                             y: { beginAtZero: true, title: { display: true, text: 'Revenue' } },
                             x: { title: { display: true, text: 'Month' } }
