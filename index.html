@@ -43,8 +43,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Klaviyo Analytics Dashboard</title>
-    <link rel="stylesheet" href="lib/bootstrap.min.css">
-    <link rel="stylesheet" href="lib/datatables.min.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -52,7 +52,7 @@
         <h1>Klaviyo Analytics Dashboard</h1>
         <div class="alert alert-info">
             <h4>Welcome</h4>
-            <p>Upload your Klaviyo CSV to instantly view insights across Daily, Weekly, Monthly, Trend, Growth, and Seasonal tabs. Optionally filter by date range and click "Filter Data" to refine results. For best results, run using a local server (e.g., <code>python -m http.server</code>) or deploy to a hosting platform like Netlify.</p>
+            <p>Upload your Klaviyo CSV to instantly view insights across Daily, Weekly, Monthly, Trend, Growth, and Seasonal tabs. Optionally filter by date range and click "Filter Data" to refine results. For best results, run using a local server (e.g., <code>python -m http.server</code>) or deploy to a hosting platform like Netlify. Note: This app requires an internet connection for library loading.</p>
         </div>
         <div class="form-group">
             <label for="csvUpload">Upload Klaviyo CSV:</label>
@@ -129,12 +129,12 @@
         </div>
     </div>
 
-    <script src="lib/papaparse.min.js"></script>
-    <script src="lib/jquery.min.js"></script>
-    <script src="lib/popper.min.js"></script>
-    <script src="lib/bootstrap.min.js"></script>
-    <script src="lib/chart.min.js"></script>
-    <script src="lib/datatables.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
