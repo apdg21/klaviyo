@@ -1,17 +1,44 @@
 let rawDataCache = null;
 
+// Helper function to parse percentage strings (e.g., "61.57%" → 0.6157)
+function parsePercentage(value) {
+    if (typeof value === 'string' && value.endsWith('%')) {
+        return parseFloat(value.replace('%', '')) / 100;
+    }
+    return parseFloat(value) || 0;
+}
+
 document.getElementById('csvUpload').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    loadingIndicator.style.display = 'block';
     Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
         complete: function(results) {
+            if (results.errors.length > 0) {
+                console.error('CSV Parsing Errors:', results.errors);
+                alert('Error parsing CSV: ' + results.errors[0].message);
+                loadingIndicator.style.display = 'none';
+                return;
+            }
             rawDataCache = results.data;
-            filterAndProcessData();
+            console.log('Parsed CSV Data:', rawDataCache); // Debug logging
+            loadingIndicator.style.display = 'none';
+            // Process data immediately if no date filters are set
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            if (!startDate && !endDate) {
+                processData(rawDataCache);
+            } else {
+                filterAndProcessData();
+            }
         },
         error: function(error) {
+            console.error('Papa Parse Error:', error);
             alert('Error parsing CSV: ' + error.message);
+            loadingIndicator.style.display = 'none';
         }
     });
 });
@@ -25,6 +52,8 @@ function filterAndProcessData() {
     }
     const startDate = document.getElementById('startDate').value;
     const endDate = document.getElementById('endDate').value;
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    loadingIndicator.style.display = 'block';
 
     const filteredData = rawDataCache.filter(row => {
         const sendDate = new Date(row['Send Time']);
@@ -33,6 +62,7 @@ function filterAndProcessData() {
         return matchesStart && matchesEnd && !isNaN(sendDate);
     });
 
+    loadingIndicator.style.display = 'none';
     if (filteredData.length === 0) {
         alert('No data matches the selected date range.');
         return;
@@ -47,6 +77,7 @@ function processData(rawData) {
     rawData.forEach(row => {
         if (!row['Send Time']) return;
         const sendDate = new Date(row['Send Time']);
+        if (isNaN(sendDate)) return; // Skip invalid dates
         const dateString = sendDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
         const weekStart = getWeekStartDate(sendDate);
         const weekString = `${weekStart.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} - ${new Date(weekStart.setDate(weekStart.getDate() + 6)).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
@@ -55,9 +86,9 @@ function processData(rawData) {
         const month = sendDate.toLocaleDateString('en-US', { month: 'long' });
         const campaignName = row['Campaign Name'] || 'Unknown';
         const revenue = parseFloat(row['Revenue']) || 0;
-        const openRate = parseFloat(row['Open Rate']) || 0;
-        const clickRate = parseFloat(row['Click Rate']) || 0;
-        const conversionRate = parseFloat(row['Placed Order Rate']) || 0;
+        const openRate = parsePercentage(row['Open Rate']);
+        const clickRate = parsePercentage(row['Click Rate']);
+        const conversionRate = parsePercentage(row['Placed Order Rate']);
         const recipients = parseFloat(row['Total Recipients']) || 0;
         const opens = parseFloat(row['Unique Opens']) || 0;
         const clicks = parseFloat(row['Unique Clicks']) || 0;

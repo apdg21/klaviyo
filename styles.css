@@ -16,6 +16,9 @@ body {
     display: inline-block;
     vertical-align: top;
 }
+.alert-warning {
+    margin-bottom: 20px;
+}
 .table-responsive {
     overflow-x: auto;
 }

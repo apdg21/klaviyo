@@ -52,18 +52,21 @@
         <h1>Klaviyo Analytics Dashboard</h1>
         <div class="alert alert-info">
             <h4>Welcome</h4>
-            <p>Upload your Klaviyo CSV, choose a date range, and click "Filter Data" to view insights across Daily, Weekly, Monthly, Trend, Growth, and Seasonal tabs.</p>
+            <p>Upload your Klaviyo CSV to instantly view insights across Daily, Weekly, Monthly, Trend, Growth, and Seasonal tabs. Optionally filter by date range and click "Filter Data" to refine results. For best results, run using a local server (e.g., <code>python -m http.server</code>) or deploy to a hosting platform like Netlify.</p>
         </div>
         <div class="form-group">
             <label for="csvUpload">Upload Klaviyo CSV:</label>
             <input type="file" id="csvUpload" class="form-control-file" accept=".csv">
         </div>
+        <div id="loadingIndicator" class="alert alert-warning" style="display: none;">
+            <p>Loading CSV data, please wait...</p>
+        </div>
         <div class="form-group">
-            <label for="startDate">Start Date:</label>
+            <label for="startDate">Start Date (Optional):</label>
             <input type="date" id="startDate" class="form-control">
         </div>
         <div class="form-group">
-            <label for="endDate">End Date:</label>
+            <label for="endDate">End Date (Optional):</label>
             <input type="date" id="endDate" class="form-control">
         </div>
         <button id="filterButton" class="btn btn-primary">Filter Data</button>
